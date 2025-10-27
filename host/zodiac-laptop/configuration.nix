@@ -98,7 +98,16 @@
   users.users.zodiac = {
     isNormalUser = true;                        # Regular user (not system)
     description = "zodiac";                     # Optional full name
-    extraGroups = [ "networkmanager" "wheel" ]; # "wheel" allows using sudo
+    extraGroups = [ "networkmanager" "wheel" "docker" ]; # "wheel" allows using sudo, "docker" for Docker access
+  };
+
+  # -----------------------------------------------------------
+  # 🐳 Docker
+  # -----------------------------------------------------------
+  # Enables Docker containerization engine and daemon.
+  virtualisation.docker = {
+    enable = true;
+    daemon.settings = {};      # Allows custom daemon settings
   };
 
   # -----------------------------------------------------------

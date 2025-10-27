@@ -26,19 +26,38 @@
   # 🧩 Packages (apps installed only for this user)
   # ===========================================================
   home.packages = with pkgs; [
+    # Media & Communication
     discord
     spotify
     vlc
     obs-studio
+    spotify-tray
+    
+    # Browsers
     firefox-devedition
+    chrome-token-signing
+    
+    # Development Tools
     postman
     unstable.vscode-fhs      # From unstable channel
     unstable.code-cursor-fhs  # From unstable channel
-    spotify-tray
-    chrome-token-signing
     neovim
     nano
-
+    
+    # Programming Languages & Builders
+    jdk21                    # Latest Java (JDK 21 LTS)
+    python3                  # Latest Python
+    gcc                      # C/C++ compiler
+    gnumake                  # Make build tool
+    cmake                    # CMake build system
+    
+    # Docker (CLI + Compose + Buildx + Lazydocker)
+    # Note: Docker Desktop is Windows/macOS only. On Linux, these tools provide full functionality.
+    docker
+    docker-compose
+    docker-buildx
+    lazydocker  # Terminal UI for Docker
+    
     # Custom helper script to safely open VSCode as root
     (writeShellScriptBin "root-code" ''
       #!/bin/bash
