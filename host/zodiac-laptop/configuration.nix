@@ -67,15 +67,29 @@
   };
 
   # -----------------------------------------------------------
-  # 🖼️ Desktop Environment (GNOME)
+  # 🖼️ Desktop Environment (Hyprland + GNOME)
   # -----------------------------------------------------------
-  # Enables the graphical interface (X11 + GNOME).
-  # If you want Hyprland or KDE later, you can replace this section.
+  # Enables Hyprland as primary window manager + keeps GNOME available.
+  programs.hyprland = {
+    enable = true;
+    xwayland.enable = true;
+  };
+
+  # Keep GNOME available as a session option
   services.xserver = {
-    enable = true;                     # Enables graphical mode
-    displayManager.gdm.enable = true;  # GNOME Display Manager (login screen)
+    enable = true;
+    displayManager.gdm = {
+      enable = true;
+      wayland = true;  # Enable both X11 and Wayland sessions
+    };
     desktopManager.gnome.enable = true;
-    xkb.layout = "us";                 # Keyboard layout
+    xkb.layout = "us";
+  };
+
+  # Required for Hyprland
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   };
 
   # -----------------------------------------------------------

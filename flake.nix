@@ -28,6 +28,7 @@
         inherit system;
         config.allowUnfree = true;
       };
+      modulesDir = toString ./modules;
     in {
       nixosConfigurations = {
         # Laptop host
