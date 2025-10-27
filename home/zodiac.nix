@@ -11,7 +11,7 @@
 # Each user on the same system can have their own version of this file.
 # =====================================================================
 
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, unstable, ... }:
 
 {
   # -----------------------------------------------------------
@@ -32,8 +32,8 @@
     obs-studio
     firefox-devedition
     postman
-    vscode-fhs
-    code-cursor-fhs
+    unstable.vscode-fhs      # From unstable channel
+    unstable.code-cursor-fhs  # From unstable channel
     spotify-tray
     chrome-token-signing
     neovim
