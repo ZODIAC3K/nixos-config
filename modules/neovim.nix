@@ -3,7 +3,7 @@
 {
   programs.neovim = {
     enable = true;
-    defaultEditor = true;
+    defaultEditor = false;
   };
 
   environment.systemPackages = with pkgs; [

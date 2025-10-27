@@ -1,178 +1,132 @@
-# Edit this configuration file to define what should be installed on
-# your system.  Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running ‘nixos-help’).
+# =====================================================================
+# 🖥️ NixOS System Configuration — zodiac-laptop
+# ---------------------------------------------------------------------
+# This file controls everything about your NixOS system itself:
+#
+# 💡 Think of this as the “Operating System” layer.
+# It defines:
+#   • How your system boots and detects hardware
+#   • Internet, audio, and display settings
+#   • Which desktop (like GNOME or KDE) is used
+#   • What programs are available to *all users*
+#   • Which users exist on the system
+#
+# Every computer can have its own version of this file.
+# =====================================================================
 
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+  # -----------------------------------------------------------
+  # 🧩 Import hardware configuration
+  # -----------------------------------------------------------
+  # This file is auto-generated when you install NixOS.
+  # It contains driver and hardware setup (disks, GPUs, etc.).
+  imports = [ ./hardware-configuration.nix ];
 
-  # Bootloader.
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
-  boot.loader.grub.useOSProber = true;
+  # -----------------------------------------------------------
+  # ⚙️ Bootloader
+  # -----------------------------------------------------------
+  # This tells your system how to start (boot) NixOS.
+  # GRUB is the program that appears when you power on your PC.
+  boot.loader.grub = {
+    enable = true;
+    device = "/dev/sda";       # Replace if your main disk differs (e.g. /dev/nvme0n1)
+    useOSProber = true;        # Detects Windows or other OS installations
+  };
 
-
-
-  networking.hostName = "nixos"; # Define your hostname.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-
-  # Configure network proxy if necessary
-  # networking.proxy.default = "http://user:password@proxy:port/";
-  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
-  # Enable networking
+  # -----------------------------------------------------------
+  # 🌐 Networking
+  # -----------------------------------------------------------
+  # Sets your system name and enables easy Wi-Fi/Ethernet management.
+  networking.hostName = "nixos";       # You can rename this to anything
   networking.networkmanager.enable = true;
 
-  # Set your time zone.
+  # -----------------------------------------------------------
+  # 🕒 Time & Language
+  # -----------------------------------------------------------
+  # Defines your timezone and regional preferences.
   time.timeZone = "Asia/Kolkata";
+  i18n = {
+    defaultLocale = "en_IN";           # Main language (English, India)
+    extraLocaleSettings = {
+      LC_TIME = "en_IN";               # Date/time format
+      LC_NUMERIC = "en_IN";            # Number format
+      LC_MONETARY = "en_IN";           # Currency format
+      # ... (you can tweak these for your country)
+    };
+  };
 
-  # Select internationalisation properties.
-  i18n.defaultLocale = "en_IN";
-
-
+  # -----------------------------------------------------------
+  # 🧠 Nix Configuration
+  # -----------------------------------------------------------
+  # Enables advanced Nix features and keeps the system tidy.
   nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
+    experimental-features = [ "nix-command" "flakes" ];  # Needed for flakes & new CLI
+    auto-optimise-store = true;                         # Saves disk space by de-duplicating files
   };
 
-  i18n.extraLocaleSettings = {
-    LC_ADDRESS = "en_IN";
-    LC_IDENTIFICATION = "en_IN";
-    LC_MEASUREMENT = "en_IN";
-    LC_MONETARY = "en_IN";
-    LC_NAME = "en_IN";
-    LC_NUMERIC = "en_IN";
-    LC_PAPER = "en_IN";
-    LC_TELEPHONE = "en_IN";
-    LC_TIME = "en_IN";
+  # -----------------------------------------------------------
+  # 🖼️ Desktop Environment (GNOME)
+  # -----------------------------------------------------------
+  # Enables the graphical interface (X11 + GNOME).
+  # If you want Hyprland or KDE later, you can replace this section.
+  services.xserver = {
+    enable = true;                     # Enables graphical mode
+    displayManager.gdm.enable = true;  # GNOME Display Manager (login screen)
+    desktopManager.gnome.enable = true;
+    xkb.layout = "us";                 # Keyboard layout
   };
 
-  # Enable the X11 windowing system.
-  services.xserver.enable = true;
-
-  # Enable the GNOME Desktop Environment.
-  services.xserver.displayManager.gdm.enable = true;
-  services.xserver.desktopManager.gnome.enable = true;
-
-  # Configure keymap in X11
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "";
-  };
-
-  # Enable CUPS to print documents.
-  services.printing.enable = true;
-
-  # Enable sound with pipewire.
-  services.pulseaudio.enable = false;
-  security.rtkit.enable = true;
+  # -----------------------------------------------------------
+  # 🔊 Audio (PipeWire)
+  # -----------------------------------------------------------
+  # Handles all sound and microphone input.
   services.pipewire = {
     enable = true;
     alsa.enable = true;
     alsa.support32Bit = true;
-    pulse.enable = true;
-    # If you want to use JACK applications, uncomment this
-    #jack.enable = true;
-
-    # use the example session manager (no others are packaged yet so this is enabled by default,
-    # no need to redefine it in your config for now)
-    #media-session.enable = true;
+    pulse.enable = true;               # PulseAudio compatibility
   };
+  security.rtkit.enable = true;        # Needed for audio scheduling
+  services.pulseaudio.enable = false;  # Disable old PulseAudio (we use PipeWire)
 
-  # Enable touchpad support (enabled default in most desktopManager).
-  # services.xserver.libinput.enable = true;
-
-  # Define a user account. Don't forget to set a password with ‘passwd’.
+  # -----------------------------------------------------------
+  # 👤 User Accounts
+  # -----------------------------------------------------------
+  # Creates your main user and gives admin (sudo) access.
   users.users.zodiac = {
-    isNormalUser = true;
-    description = "zodiac";
-    extraGroups = [ "networkmanager" "wheel" ];
-    packages = with pkgs; [
-    #  thunderbird
-    ];
-    # after login in use sudo passwd zodiac.
-    # initialPassword = "PSSWORD"
+    isNormalUser = true;                        # Regular user (not system)
+    description = "zodiac";                     # Optional full name
+    extraGroups = [ "networkmanager" "wheel" ]; # "wheel" allows using sudo
   };
 
-  # Install firefox.
-  programs.firefox.enable = true;
+  # -----------------------------------------------------------
+  # 📦 System Packages
+  # -----------------------------------------------------------
+  # These programs are installed for *everyone* on the system.
+  environment.systemPackages =
+    with pkgs; [
+      git
+      curl
+      wget
+      # Add basic CLI tools you want system-wide here
+    ]
+    # Kitty only if you have a graphical desktop
+    ++ (lib.optional (config.services.xserver.enable or false) kitty)
+    # Use Neovim/Nano only if you don’t have a GUI
+    ++ (lib.optional (!(config.services.xserver.enable or false)) [ neovim nano ]);
 
-  # Allow unfree packages
+  # -----------------------------------------------------------
+  # 🔓 Allow Unfree Packages
+  # -----------------------------------------------------------
+  # Enables software with non-open-source licenses (e.g. Google Chrome, VSCode)
   nixpkgs.config.allowUnfree = true;
 
-  
- # Set VSCode as the default editor
-  environment.variables = {
-    EDITOR = "code --wait";
-    VISUAL = "code --wait";
-  };
-
-# List packages installed in system profile. To search, run:
-  # $ nix search wget
-  environment.systemPackages = with pkgs; [
-  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
-  discord
-  spotify
-  vlc
-  obs-studio
-  firefox-devedition
-  postman
-  vscode-fhs
-  code-cursor-fhs
-  spotify-tray
-  chrome-token-signing
-  #  Wrapper script to safely run VSCode as root
-  (writeShellScriptBin "root-code" ''
-      #!/bin/bash
-      if [ $# -lt 1 ]; then
-        echo "Usage: root-code <file>"
-        exit 1
-      fi
-      FILE="$1"
-      shift
-      sudo code --no-sandbox --user-data-dir=/t  system.stateVersion = "25.05";mp/vscode "$FILE" "$@"
-    '')
-  ];
-
-   environment.shellInit = ''
-    root() {
-      if [ "$1" = "code" ]; then
-        shift
-        root-code "$@"
-      else
-        sudo "$@"
-      fi
-    }
-  '';
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
-
-  # List services that you want to enable:
-
-  # Enable the OpenSSH daemon.
-  # services.openssh.enable = true;
-
-  # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
-
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It‘s perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  # Before changing this value read the documentation for this option
-  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html)
+  # -----------------------------------------------------------
+  # 🧱 System Version
+  # -----------------------------------------------------------
+  # This defines compatibility with your NixOS release.
+  # Do NOT change unless upgrading your system manually.
   system.stateVersion = "25.05";
 }
