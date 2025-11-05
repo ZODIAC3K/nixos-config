@@ -135,8 +135,8 @@ in
     displayManager.gdm = {
       enable = true;
       wayland = true;  # Enable both X11 and Wayland sessions
-      defaultSession = "gnome";  # Set GNOME as default DE (Hyprland still available)
     };
+    displayManager.defaultSession = "gnome";  # Set GNOME as default DE (Hyprland still available)
     desktopManager.gnome.enable = true;
     xkb.layout = "us";
   };
