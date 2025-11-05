@@ -164,8 +164,7 @@
   hardware.opengl = {
     enable = true;
     package = unstable.mesa.drivers;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa.drivers for stable)
-    driSupport = true;
-    driSupport32Bit = true;
+    driSupport32Bit = true;  # Enable 32-bit DRI support if needed
   };
   
   # NVIDIA proprietary drivers for 3D acceleration, Vulkan, and CUDA support
