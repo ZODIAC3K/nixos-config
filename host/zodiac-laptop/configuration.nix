@@ -18,19 +18,16 @@
 
 let
   # -----------------------------------------------------------
-  # 🖥️ VM Detection
+  # 🖥️ VM Detection Configuration
   # -----------------------------------------------------------
-  # Detect if running in VMware or VirtualBox VM
-  # Check via DMI system information (more reliable than other methods)
-  # Uses tryEval to safely handle cases where DMI files don't exist
-  readDMIFile = path: (builtins.tryEval (builtins.readFile path)).value or "";
-  dmiProductName = readDMIFile /sys/class/dmi/id/product_name;
-  dmiSysVendor = readDMIFile /sys/class/dmi/id/sys_vendor;
-  
-  isVMware = lib.hasInfix "VMware" dmiProductName || lib.hasInfix "VMware" dmiSysVendor;
-  isVirtualBox = lib.hasInfix "VirtualBox" dmiProductName || lib.hasInfix "VirtualBox" dmiSysVendor ||
-                 lib.hasInfix "innotek" dmiProductName || lib.hasInfix "innotek" dmiSysVendor ||
-                 lib.hasInfix "Oracle" dmiProductName || lib.hasInfix "Oracle" dmiSysVendor;
+  # Set these to true if running in a VM, false for bare metal
+  # Default: assumes bare metal (GPU drivers enabled, VM tools disabled)
+  # To enable VM mode, uncomment and set one of these:
+  #   isVMware = true;      # For VMware VMs
+  #   isVirtualBox = true;   # For VirtualBox VMs
+  #   isVM = true;          # Generic VM flag (if you don't know the type)
+  isVMware = false;
+  isVirtualBox = false;
   isVM = isVMware || isVirtualBox;
 in
 {
@@ -155,7 +152,11 @@ in
   # 🖥️ VM Tools Configuration
   # -----------------------------------------------------------
   # Enable VM tools based on detected VM type
-  services.open-vm-tools.enable = isVMware;  # VMware guest tools
+  # Note: If running in a VM, set isVMware/isVirtualBox to true in the let block above
+  # VMware guest tools (open-vm-tools)
+  virtualisation.vmware.guest.enable = isVMware;  # VMware guest tools
+  
+  # VirtualBox guest additions
   virtualisation.virtualbox.guest.enable = isVirtualBox;  # VirtualBox guest additions
 
   # -----------------------------------------------------------
