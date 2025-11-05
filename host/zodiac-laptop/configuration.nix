@@ -18,29 +18,36 @@
 
 let
   # -----------------------------------------------------------
-  # 🖥️ VM Detection Configuration
+  # 🖥️ VM & GPU Hardware Detection
   # -----------------------------------------------------------
   # Auto-detect VM by checking hardware-configuration.nix for VM-specific kernel modules
-  # VM kernels typically include: ata_piix, mptspi (VMware), or other virtual hardware
-  # Also check if NVIDIA GPU hardware exists (if no NVIDIA, likely VM)
-  
-  # Check hardware-configuration.nix for VM indicators
-  # These modules are commonly found in VMs, not bare metal
   vmKernelModules = [ "ata_piix" "mptspi" ];
   availableModules = config.boot.initrd.availableKernelModules or [];
   hasVMModules = lib.any (mod: lib.elem mod availableModules) vmKernelModules;
   
-  # Auto-detect VM: if VM-specific modules are present, we're in a VM
-  # Check your hardware-configuration.nix - if you see "ata_piix" or "mptspi", it's a VM
-  isVMware = hasVMModules;  # Auto-detect based on kernel modules
-  isVirtualBox = hasVMModules;  # Both VMware and VirtualBox use similar modules
-  
-  # Manual override (uncomment if auto-detection is wrong):
-  # isVMware = true;   # Force VMware mode
-  # isVirtualBox = true;   # Force VirtualBox mode
-  # isVMware = false;  # Force bare metal (disable VM detection)
-  
+  # VM Detection
+  isVMware = hasVMModules;
+  isVirtualBox = hasVMModules;
   isVM = isVMware || isVirtualBox;
+  
+  # GPU Hardware Detection
+  # Run this command to detect GPUs: lspci | grep -i vga
+  # Or check: lspci | grep -iE "vga|3d|display"
+  # 
+  # Manual GPU detection flags (set based on your hardware):
+  # If you have AMD GPU, set: hasAMDGPU = true;
+  # If you have NVIDIA GPU, set: hasNVIDIAGPU = true;
+  # 
+  # Auto-detect: If VM is detected, assume no GPUs (for now)
+  # You can override manually if needed:
+  hasAMDGPU = !isVM;      # Assume AMD GPU present if not in VM (override manually if needed)
+  hasNVIDIAGPU = !isVM;   # Assume NVIDIA GPU present if not in VM (override manually if needed)
+  
+  # Manual override examples (uncomment and set based on your hardware):
+  # hasAMDGPU = true;      # Force enable AMD GPU drivers
+  # hasNVIDIAGPU = true;   # Force enable NVIDIA GPU drivers
+  # hasAMDGPU = false;     # Disable AMD GPU drivers
+  # hasNVIDIAGPU = false;  # Disable NVIDIA GPU drivers
 in
 {
   # -----------------------------------------------------------
@@ -180,6 +187,7 @@ in
       git
       curl
       wget
+      pciutils  # lspci command for hardware detection
       # Add basic CLI tools you want system-wide here
     ]
     # Kitty only if you have a graphical desktop
@@ -188,29 +196,32 @@ in
     ++ (lib.optional (!(config.services.xserver.enable or false)) [ neovim nano ]);
 
   # -----------------------------------------------------------
-  # 🎮 Hybrid GPU Configuration (AMD + NVIDIA)
+  # 🎮 GPU Hardware Detection & Configuration
   # -----------------------------------------------------------
-  # Supports hybrid laptop with AMD integrated/GPU + NVIDIA dedicated GPU.
-  # AMD handles display output; NVIDIA available for compute/CUDA tasks.
-  # NOTE: GPU drivers are ONLY enabled when NOT running in a VM.
-  # In VMs, use the default virtual graphics drivers.
+  # GPU drivers are enabled ONLY when the corresponding GPU hardware is detected.
+  # Mesa (graphics library) is always enabled for basic graphics support.
+  #
+  # To detect your GPUs, run: lspci | grep -iE "vga|3d|display"
+  # Look for entries like:
+  #   - AMD/ATI devices → enable AMD drivers
+  #   - NVIDIA devices → enable NVIDIA drivers
   
-  # Only enable GPU drivers if NOT running in a VM
-  boot.initrd.kernelModules = lib.mkIf (!isVM) [ "amdgpu" ];
+  # Enable AMD GPU kernel module ONLY if AMD GPU hardware is detected
+  boot.initrd.kernelModules = lib.mkIf hasAMDGPU [ "amdgpu" ];
   
+  # Mesa graphics library - always enabled (needed for basic graphics)
   # AMD GPU userspace (OpenGL/Vulkan) - using Mesa from unstable for bleeding-edge
   # Optionally use stable Mesa: hardware.graphics.package = pkgs.mesa;
-  hardware.graphics = lib.mkIf (!isVM) {
+  hardware.graphics = {
     enable = true;
     package = unstable.mesa;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa for stable)
     enable32Bit = true;  # Enable 32-bit DRI support if needed
   };
   
-  # NVIDIA proprietary drivers for 3D acceleration, Vulkan, and CUDA support
-  # Only enable when NOT in VM
-  services.xserver.videoDrivers = lib.mkIf (!isVM) [ "nvidia" ];
+  # NVIDIA proprietary drivers - ONLY enable if NVIDIA GPU hardware is detected
+  services.xserver.videoDrivers = lib.mkIf hasNVIDIAGPU [ "nvidia" ];
   
-  hardware.nvidia = lib.mkIf (!isVM) {
+  hardware.nvidia = lib.mkIf hasNVIDIAGPU {
     # Enable NVIDIA drivers
     modesetting.enable = true;
     
