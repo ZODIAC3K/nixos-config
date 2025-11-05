@@ -79,20 +79,6 @@ in
   # It contains driver and hardware setup (disks, GPUs, etc.).
   imports = [ ./hardware-configuration.nix ];
   
-  # Force evaluation of detection trace by referencing it
-  assertions = [
-    {
-      assertion = true;
-      message = builtins.trace ''
-    ════════════════════════════════════════════════════════════
-    🔍 Hardware Detection Results:
-    ════════════════════════════════════════════════════════════
-    🖥️  Environment: ${vmStatus}
-    🎮 GPU Drivers:  ${gpuStatus}
-    ════════════════════════════════════════════════════════════
-  '' "See detection output above";
-    }
-  ];
 
   # -----------------------------------------------------------
   # ⚙️ Bootloader
@@ -152,10 +138,12 @@ in
       enable = true;
       wayland = true;  # Enable both X11 and Wayland sessions
     };
-    displayManager.defaultSession = "gnome";  # Set GNOME as default DE (Hyprland still available)
     desktopManager.gnome.enable = true;
     xkb.layout = "us";
   };
+  
+  # Set GNOME as default session (Hyprland still available)
+  services.displayManager.defaultSession = "gnome";
 
   # Required for Hyprland
   xdg.portal = {
@@ -209,8 +197,15 @@ in
   # 🖥️ VM Tools Configuration
   # -----------------------------------------------------------
   # Enable VM tools based on detected VM type
-  # VMware guest tools (open-vm-tools)
-  virtualisation.vmware.guest.enable = isVMware;  # VMware guest tools
+  # Print detection results when evaluating VM tools
+  virtualisation.vmware.guest.enable = builtins.trace ''
+    ════════════════════════════════════════════════════════════
+    🔍 Hardware Detection Results:
+    ════════════════════════════════════════════════════════════
+    🖥️  Environment: ${vmStatus}
+    🎮 GPU Drivers:  ${gpuStatus}
+    ════════════════════════════════════════════════════════════
+  '' isVMware;  # VMware guest tools
   
   # VirtualBox guest additions
   virtualisation.virtualbox.guest.enable = isVirtualBox;  # VirtualBox guest additions
