@@ -53,13 +53,13 @@ in
   # -----------------------------------------------------------
   # ⚙️ Bootloader
   # -----------------------------------------------------------
-  # This tells your system how to start (boot) NixOS.
-  # GRUB is the program that appears when you power on your PC.
-  boot.loader.grub = {
-    enable = true;
-    device = "/dev/sda";       # Replace if your main disk differs (e.g. /dev/nvme0n1)
-    useOSProber = true;        # Detects Windows or other OS installations
-  };
+  # GRUB bootloader is disabled
+  # boot.loader.grub = {
+  #   enable = true;
+  #   device = "/dev/sda";       # Replace if your main disk differs (e.g. /dev/nvme0n1)
+  #   useOSProber = true;        # Detects Windows or other OS installations
+  # };
+  boot.loader.grub.enable = false;
 
   # -----------------------------------------------------------
   # 🌐 Networking
