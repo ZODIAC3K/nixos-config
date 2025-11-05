@@ -113,6 +113,16 @@
     isNormalUser = true;                        # Regular user (not system)
     description = "zodiac";                     # Optional full name
     extraGroups = [ "networkmanager" "wheel" "docker" ]; # "wheel" allows using sudo, "docker" for Docker access
+    
+    # 🔐 Password & UID
+    # Option 1: Set password hash here (generate with: mkpasswd -m sha-512)
+   initialPassword = "zodiac";              # Temporary password (change after first login!)
+    
+    # Option 2: Set password after first build:
+    #   sudo passwd zodiac
+    
+    # Optional: Set a specific UID (default: auto-assigned)
+    # uid = 1000;                                 # Uncomment and set desired UID
   };
 
   # -----------------------------------------------------------
