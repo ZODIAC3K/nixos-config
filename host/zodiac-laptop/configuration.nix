@@ -14,7 +14,7 @@
 # Every computer can have its own version of this file.
 # =====================================================================
 
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, unstable, ... }:
 
 {
   # -----------------------------------------------------------
@@ -141,9 +141,63 @@
     ++ (lib.optional (!(config.services.xserver.enable or false)) [ neovim nano ]);
 
   # -----------------------------------------------------------
+  # 🎮 Hybrid GPU Configuration (AMD + NVIDIA)
+  # -----------------------------------------------------------
+  # Supports hybrid laptop with AMD integrated/GPU + NVIDIA dedicated GPU.
+  # AMD handles display output; NVIDIA available for compute/CUDA tasks.
+  
+  # Enable AMD GPU kernel support
+  boot.initrd.kernelModules = [ "amdgpu" ];
+  
+  # AMD GPU userspace (OpenGL/Vulkan) - using Mesa from unstable for bleeding-edge
+  # Optionally use stable Mesa: hardware.opengl.package = pkgs.mesa.drivers;
+  hardware.opengl = {
+    enable = true;
+    package = unstable.mesa.drivers;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa.drivers for stable)
+    driSupport = true;
+    driSupport32Bit = true;
+  };
+  
+  # NVIDIA proprietary drivers for 3D acceleration, Vulkan, and CUDA support
+  services.xserver.videoDrivers = [ "nvidia" ];
+  
+  hardware.nvidia = {
+    # Enable NVIDIA drivers
+    modesetting.enable = true;
+    
+    # Enable power management (fixes some issues with hybrid graphics)
+    powerManagement.enable = true;
+    
+    # Enable NVIDIA power management (recommended for laptops)
+    powerManagement.finegrained = false;
+    
+    # Enable OpenGL support
+    open = false;  # Use proprietary drivers (not open-source Nouveau)
+    
+    # Enable CUDA support
+    nvidiaSettings = true;  # Installs nvidia-settings for GUI tweaks
+    
+    # Package set for NVIDIA drivers and CUDA
+    package = config.boot.kernelPackages.nvidiaPackages.production;
+  };
+  
+  # NVIDIA PRIME (offload rendering to NVIDIA GPU)
+  # By default DISABLED - system uses AMD for display, NVIDIA for compute only.
+  # Uncomment below to enable GPU offloading (more complex, requires runtime setup):
+  # hardware.nvidia.prime = {
+  #   # AMD GPU (usually the integrated GPU)
+  #   amdgpuBusId = "PCI:1:0:0";  # Find with: lspci | grep -i vga
+  #   # NVIDIA GPU (usually the dedicated GPU)
+  #   nvidiaBusId = "PCI:2:0:0";  # Find with: lspci | grep -i nvidia
+  # };
+  
+  # CUDA support (for compute tasks)
+  hardware.nvidia.cudaSupport = true;
+  
+  # -----------------------------------------------------------
   # 🔓 Allow Unfree Packages
   # -----------------------------------------------------------
-  # Enables software with non-open-source licenses (e.g. Google Chrome, VSCode)
+  # Enables software with non-open-source licenses (e.g. Google Chrome, VSCode, NVIDIA drivers)
   nixpkgs.config.allowUnfree = true;
 
   # -----------------------------------------------------------
