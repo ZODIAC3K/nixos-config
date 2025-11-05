@@ -16,6 +16,23 @@
 
 { config, pkgs, lib, unstable, ... }:
 
+let
+  # -----------------------------------------------------------
+  # 🖥️ VM Detection
+  # -----------------------------------------------------------
+  # Detect if running in VMware or VirtualBox VM
+  # Check via DMI system information (more reliable than other methods)
+  # Uses tryEval to safely handle cases where DMI files don't exist
+  readDMIFile = path: (builtins.tryEval (builtins.readFile path)).value or "";
+  dmiProductName = readDMIFile /sys/class/dmi/id/product_name;
+  dmiSysVendor = readDMIFile /sys/class/dmi/id/sys_vendor;
+  
+  isVMware = lib.hasInfix "VMware" dmiProductName || lib.hasInfix "VMware" dmiSysVendor;
+  isVirtualBox = lib.hasInfix "VirtualBox" dmiProductName || lib.hasInfix "VirtualBox" dmiSysVendor ||
+                 lib.hasInfix "innotek" dmiProductName || lib.hasInfix "innotek" dmiSysVendor ||
+                 lib.hasInfix "Oracle" dmiProductName || lib.hasInfix "Oracle" dmiSysVendor;
+  isVM = isVMware || isVirtualBox;
+in
 {
   # -----------------------------------------------------------
   # 🧩 Import hardware configuration
@@ -135,6 +152,13 @@
   };
 
   # -----------------------------------------------------------
+  # 🖥️ VM Tools Configuration
+  # -----------------------------------------------------------
+  # Enable VM tools based on detected VM type
+  services.open-vm-tools.enable = isVMware;  # VMware guest tools
+  virtualisation.virtualbox.guest.enable = isVirtualBox;  # VirtualBox guest additions
+
+  # -----------------------------------------------------------
   # 📦 System Packages
   # -----------------------------------------------------------
   # These programs are installed for *everyone* on the system.
@@ -147,7 +171,7 @@
     ]
     # Kitty only if you have a graphical desktop
     ++ (lib.optional (config.services.xserver.enable or false) kitty)
-    # Use Neovim/Nano only if you don’t have a GUI
+    # Use Neovim/Nano only if you don't have a GUI
     ++ (lib.optional (!(config.services.xserver.enable or false)) [ neovim nano ]);
 
   # -----------------------------------------------------------
@@ -155,22 +179,25 @@
   # -----------------------------------------------------------
   # Supports hybrid laptop with AMD integrated/GPU + NVIDIA dedicated GPU.
   # AMD handles display output; NVIDIA available for compute/CUDA tasks.
+  # NOTE: GPU drivers are ONLY enabled when NOT running in a VM.
+  # In VMs, use the default virtual graphics drivers.
   
-  # Enable AMD GPU kernel support
-  boot.initrd.kernelModules = [ "amdgpu" ];
+  # Only enable GPU drivers if NOT running in a VM
+  boot.initrd.kernelModules = lib.mkIf (!isVM) [ "amdgpu" ];
   
   # AMD GPU userspace (OpenGL/Vulkan) - using Mesa from unstable for bleeding-edge
   # Optionally use stable Mesa: hardware.graphics.package = pkgs.mesa;
-  hardware.graphics = {
+  hardware.graphics = lib.mkIf (!isVM) {
     enable = true;
     package = unstable.mesa;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa for stable)
     enable32Bit = true;  # Enable 32-bit DRI support if needed
   };
   
   # NVIDIA proprietary drivers for 3D acceleration, Vulkan, and CUDA support
-  services.xserver.videoDrivers = [ "nvidia" ];
+  # Only enable when NOT in VM
+  services.xserver.videoDrivers = lib.mkIf (!isVM) [ "nvidia" ];
   
-  hardware.nvidia = {
+  hardware.nvidia = lib.mkIf (!isVM) {
     # Enable NVIDIA drivers
     modesetting.enable = true;
     
