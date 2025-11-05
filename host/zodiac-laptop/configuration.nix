@@ -20,14 +20,26 @@ let
   # -----------------------------------------------------------
   # 🖥️ VM Detection Configuration
   # -----------------------------------------------------------
-  # Set these to true if running in a VM, false for bare metal
-  # Default: assumes bare metal (GPU drivers enabled, VM tools disabled)
-  # To enable VM mode, uncomment and set one of these:
-  #   isVMware = true;      # For VMware VMs
-  #   isVirtualBox = true;   # For VirtualBox VMs
-  #   isVM = true;          # Generic VM flag (if you don't know the type)
-  isVMware = false;
-  isVirtualBox = false;
+  # Auto-detect VM by checking hardware-configuration.nix for VM-specific kernel modules
+  # VM kernels typically include: ata_piix, mptspi (VMware), or other virtual hardware
+  # Also check if NVIDIA GPU hardware exists (if no NVIDIA, likely VM)
+  
+  # Check hardware-configuration.nix for VM indicators
+  # These modules are commonly found in VMs, not bare metal
+  vmKernelModules = [ "ata_piix" "mptspi" ];
+  availableModules = config.boot.initrd.availableKernelModules or [];
+  hasVMModules = lib.any (mod: lib.elem mod availableModules) vmKernelModules;
+  
+  # Auto-detect VM: if VM-specific modules are present, we're in a VM
+  # Check your hardware-configuration.nix - if you see "ata_piix" or "mptspi", it's a VM
+  isVMware = hasVMModules;  # Auto-detect based on kernel modules
+  isVirtualBox = hasVMModules;  # Both VMware and VirtualBox use similar modules
+  
+  # Manual override (uncomment if auto-detection is wrong):
+  # isVMware = true;   # Force VMware mode
+  # isVirtualBox = true;   # Force VirtualBox mode
+  # isVMware = false;  # Force bare metal (disable VM detection)
+  
   isVM = isVMware || isVirtualBox;
 in
 {
