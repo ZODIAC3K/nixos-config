@@ -99,7 +99,7 @@
     bibata-cursors           # 🖱️ Cursor theme
     papirus-icon-theme       # 🧩 Icon pack
     lxappearance             # 🎨 GTK theme manager
-    libsForQt5.qt5ct         # 🎨 QT theme manager (QT5)
+    qt5Packages.qt5ct        # 🎨 QT theme manager (QT5) - libsForQt5 is deprecated
     
     # --- Portals / Integration ---
     xdg-desktop-portal-gtk

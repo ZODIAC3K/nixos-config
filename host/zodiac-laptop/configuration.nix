@@ -160,11 +160,11 @@
   boot.initrd.kernelModules = [ "amdgpu" ];
   
   # AMD GPU userspace (OpenGL/Vulkan) - using Mesa from unstable for bleeding-edge
-  # Optionally use stable Mesa: hardware.opengl.package = pkgs.mesa.drivers;
-  hardware.opengl = {
+  # Optionally use stable Mesa: hardware.graphics.package = pkgs.mesa;
+  hardware.graphics = {
     enable = true;
-    package = unstable.mesa.drivers;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa.drivers for stable)
-    driSupport32Bit = true;  # Enable 32-bit DRI support if needed
+    package = unstable.mesa;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa for stable)
+    enable32Bit = true;  # Enable 32-bit DRI support if needed
   };
   
   # NVIDIA proprietary drivers for 3D acceleration, Vulkan, and CUDA support
@@ -201,14 +201,11 @@
   #   nvidiaBusId = "PCI:2:0:0";  # Find with: lspci | grep -i nvidia
   # };
   
-  # Enable CUDA support for packages that can use it (optional)
-  # This tells nixpkgs to build packages with CUDA support when available
-  nixpkgs.config.cudaSupport = true;
-  
   # -----------------------------------------------------------
   # 🔓 Allow Unfree Packages
   # -----------------------------------------------------------
   # Enables software with non-open-source licenses (e.g. Google Chrome, VSCode, NVIDIA drivers)
+  # Note: CUDA support is automatically included with NVIDIA drivers package
   nixpkgs.config.allowUnfree = true;
 
   # -----------------------------------------------------------
