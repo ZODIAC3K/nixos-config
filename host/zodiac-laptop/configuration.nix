@@ -61,6 +61,7 @@ let
   );
   
   # Print detection results during evaluation
+  # Force evaluation by using it in an assertion
   _ = builtins.trace ''
     ════════════════════════════════════════════════════════════
     🔍 Hardware Detection Results:
@@ -77,6 +78,21 @@ in
   # This file is auto-generated when you install NixOS.
   # It contains driver and hardware setup (disks, GPUs, etc.).
   imports = [ ./hardware-configuration.nix ];
+  
+  # Force evaluation of detection trace by referencing it
+  assertions = [
+    {
+      assertion = true;
+      message = builtins.trace ''
+    ════════════════════════════════════════════════════════════
+    🔍 Hardware Detection Results:
+    ════════════════════════════════════════════════════════════
+    🖥️  Environment: ${vmStatus}
+    🎮 GPU Drivers:  ${gpuStatus}
+    ════════════════════════════════════════════════════════════
+  '' "See detection output above";
+    }
+  ];
 
   # -----------------------------------------------------------
   # ⚙️ Bootloader
@@ -193,7 +209,6 @@ in
   # 🖥️ VM Tools Configuration
   # -----------------------------------------------------------
   # Enable VM tools based on detected VM type
-  # Note: If running in a VM, set isVMware/isVirtualBox to true in the let block above
   # VMware guest tools (open-vm-tools)
   virtualisation.vmware.guest.enable = isVMware;  # VMware guest tools
   
