@@ -20,28 +20,28 @@ let
   # -----------------------------------------------------------
   # 🖥️ VM & GPU Hardware Detection
   # -----------------------------------------------------------
-  # Auto-detect VM by checking hardware-configuration.nix for VM-specific kernel modules
-  vmKernelModules = [ "ata_piix" "mptspi" ];
-  availableModules = config.boot.initrd.availableKernelModules or [];
-  hasVMModules = lib.any (mod: lib.elem mod availableModules) vmKernelModules;
+  # VM Detection: Check hardware-configuration.nix for VM-specific modules
+  # VM kernels typically include: ata_piix, mptspi (VMware/VirtualBox)
+  # Your hardware-configuration.nix shows: "ata_piix" "mptspi" → VM detected
   
-  # VM Detection
-  isVMware = hasVMModules;
-  isVirtualBox = hasVMModules;
+  # VM Detection flags - set manually or auto-detect via hardware-config
+  # Check your hardware-configuration.nix: if you see "ata_piix" or "mptspi", it's a VM
+  # For now, defaulting to VM mode (can be overridden)
+  isVMware = true;      # Set to false if bare metal
+  isVirtualBox = true;   # Set to false if bare metal
   isVM = isVMware || isVirtualBox;
   
   # GPU Hardware Detection
-  # Run this command to detect GPUs: lspci | grep -i vga
-  # Or check: lspci | grep -iE "vga|3d|display"
+  # Run this command after installing pciutils: lspci | grep -iE "vga|3d|display"
+  # Or check: dmesg | grep -iE "amdgpu|nvidia|vga"
   # 
-  # Manual GPU detection flags (set based on your hardware):
+  # Manual GPU detection flags (set based on your actual hardware):
   # If you have AMD GPU, set: hasAMDGPU = true;
   # If you have NVIDIA GPU, set: hasNVIDIAGPU = true;
   # 
-  # Auto-detect: If VM is detected, assume no GPUs (for now)
-  # You can override manually if needed:
-  hasAMDGPU = !isVM;      # Assume AMD GPU present if not in VM (override manually if needed)
-  hasNVIDIAGPU = !isVM;   # Assume NVIDIA GPU present if not in VM (override manually if needed)
+  # Default: Assume no GPUs in VM (override manually if needed)
+  hasAMDGPU = !isVM;      # Enable AMD GPU drivers if not in VM (override manually)
+  hasNVIDIAGPU = !isVM;   # Enable NVIDIA GPU drivers if not in VM (override manually)
   
   # Manual override examples (uncomment and set based on your hardware):
   # hasAMDGPU = true;      # Force enable AMD GPU drivers
