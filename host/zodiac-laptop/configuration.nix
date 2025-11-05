@@ -184,10 +184,11 @@
     # Enable OpenGL support
     open = false;  # Use proprietary drivers (not open-source Nouveau)
     
-    # Enable CUDA support
+    # Enable CUDA support (installed with NVIDIA drivers)
+    # CUDA is automatically included with nvidiaPackages.production
     nvidiaSettings = true;  # Installs nvidia-settings for GUI tweaks
     
-    # Package set for NVIDIA drivers and CUDA
+    # Package set for NVIDIA drivers (includes CUDA support)
     package = config.boot.kernelPackages.nvidiaPackages.production;
   };
   
@@ -201,8 +202,9 @@
   #   nvidiaBusId = "PCI:2:0:0";  # Find with: lspci | grep -i nvidia
   # };
   
-  # CUDA support (for compute tasks)
-  hardware.nvidia.cudaSupport = true;
+  # Enable CUDA support for packages that can use it (optional)
+  # This tells nixpkgs to build packages with CUDA support when available
+  nixpkgs.config.cudaSupport = true;
   
   # -----------------------------------------------------------
   # 🔓 Allow Unfree Packages
