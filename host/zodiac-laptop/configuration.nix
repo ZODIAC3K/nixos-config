@@ -280,8 +280,8 @@ in
   # Modprobe blacklist - CONDITIONAL: Only active when GPUs are disabled
   # The "install <module> /bin/false" prevents the kernel from loading it even if hardware is detected
   # This creates /etc/modprobe.d/blacklist.conf
-  boot.extraModprobeConfig = lib.concatStringsSep "\n" [
-    (lib.mkIf (!hasAMDGPU) ''
+  boot.extraModprobeConfig = 
+    (if !hasAMDGPU then ''
       # Blacklist AMD GPU modules to prevent crashes in VM/bare metal without AMD GPU
       # The kernel may still detect virtual GPU hardware and try to load these modules
       # These rules prevent that from happening
@@ -289,8 +289,8 @@ in
       blacklist radeon
       install amdgpu /bin/false
       install radeon /bin/false
-    '')
-    (lib.mkIf (!hasNVIDIAGPU) ''
+    '' else '') +
+    (if !hasNVIDIAGPU then ''
       # Blacklist NVIDIA GPU modules to prevent loading when NVIDIA GPU is disabled
       blacklist nvidia
       blacklist nvidia_drm
@@ -302,8 +302,7 @@ in
       install nvidia_modeset /bin/false
       install nvidia_uvm /bin/false
       install nouveau /bin/false
-    '')
-  ];
+    '' else '');
   
   # dm_mod (device mapper) - blacklist if not needed
   # Remove "dm_mod" from blacklist if you use LVM or other device mapper features
