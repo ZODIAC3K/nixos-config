@@ -96,6 +96,20 @@ in
   #   useOSProber = true;        # Detects Windows or other OS installations
   # };
   boot.loader.grub.enable = false;
+  
+  # Kernel parameters to prevent GPU auto-loading in initrd when GPUs are disabled
+  # This prevents the kernel from auto-detecting and loading GPU modules during Stage 1
+  # The module_blacklist parameter tells the kernel to never load these modules
+  boot.kernelParams = 
+    if (!hasAMDGPU && !hasNVIDIAGPU) then [
+      "module_blacklist=amdgpu"
+      "module_blacklist=radeon"
+      "module_blacklist=nvidia"
+      "module_blacklist=nvidia_drm"
+      "module_blacklist=nvidia_modeset"
+      "module_blacklist=nvidia_uvm"
+      "module_blacklist=nouveau"
+    ] else [ ];
 
   # -----------------------------------------------------------
   # 🌐 Networking
@@ -316,10 +330,12 @@ in
   # boot.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
   # boot.initrd.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
   
-  # AMD GPU kernel module - ENABLED
-  # Note: Remove amdgpu from blacklist above if needed (done below)
+  # AMD GPU kernel module - CONDITIONAL: Only load if enabled
+  # When hasAMDGPU = false, don't load in initrd (kernel may still auto-detect, so we use kernel params too)
   boot.initrd.kernelModules = lib.mkMerge [
     (lib.mkIf hasAMDGPU [ "amdgpu" ])
+    # When GPUs are disabled, ensure empty list (prevents auto-loading)
+    (lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) [ ])
   ];
   
   # Mesa graphics library - always enabled (needed for basic graphics)
