@@ -336,14 +336,41 @@ in
   boot.initrd.kernelModules = 
     if hasAMDGPU then [ "amdgpu" ] else [ ];
   
-  # Custom initrd script to prevent GPU modules from loading when disabled
-  # This runs during initrd Stage 1 very early, before modules are probed
-  # The initrd script tries to load modules based on hardware detection,
-  # so we need to blacklist them before that happens
-  boot.initrd.preDeviceCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
-    # Create modprobe blacklist very early in initrd
-    mkdir -p /etc/modprobe.d
-    cat > /etc/modprobe.d/blacklist.conf <<EOF
+  # CRITICAL FIX: Override the initrd script that loads modules
+  # The initrd script calls "modprobe -a" which tries to load all detected modules
+  # We need to intercept this by creating a wrapper that prevents GPU modules
+  boot.initrd.systemd = {
+    enable = true;  # Use systemd initrd for better control
+  };
+  
+  # Create a custom modprobe wrapper that prevents GPU modules from loading
+  boot.initrd.extraUtilsCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
+    # Create modprobe wrapper that prevents GPU modules
+    mkdir -p $out/bin
+    cat > $out/bin/modprobe <<'MODPROBE_EOF'
+#!/bin/sh
+# Wrapper to prevent GPU modules from loading
+case "$1" in
+  amdgpu|radeon|nvidia|nvidia_drm|nvidia_modeset|nvidia_uvm|nouveau)
+    echo "modprobe: ERROR: Module $1 is blacklisted" >&2
+    exit 1
+    ;;
+esac
+# Call real modprobe for other modules (use busybox modprobe if available)
+if command -v modprobe.real >/dev/null 2>&1; then
+  exec modprobe.real "$@"
+elif [ -f /sbin/modprobe ]; then
+  exec /sbin/modprobe "$@"
+else
+  echo "modprobe: ERROR: Cannot find modprobe binary" >&2
+  exit 1
+fi
+MODPROBE_EOF
+    chmod +x $out/bin/modprobe
+    
+    # Also create blacklist config
+    mkdir -p $out/etc/modprobe.d
+    cat > $out/etc/modprobe.d/blacklist.conf <<'EOF'
 blacklist amdgpu
 blacklist radeon
 blacklist nvidia
@@ -358,15 +385,17 @@ install nouveau /bin/false
 EOF
   '';
   
-  # Also prevent loading via early initrd hooks
-  # This runs before udev starts probing devices
-  boot.initrd.extraUtilsCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
-    # Ensure blacklist is present before modules are loaded
-    mkdir -p $out/etc/modprobe.d
-    cat > $out/etc/modprobe.d/blacklist.conf <<EOF
+  # Also ensure blacklist is present in initrd
+  boot.initrd.preDeviceCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
+    # Create modprobe blacklist very early
+    mkdir -p /etc/modprobe.d
+    cat > /etc/modprobe.d/blacklist.conf <<'EOF'
 blacklist amdgpu
 blacklist radeon
 blacklist nvidia
+blacklist nvidia_drm
+blacklist nvidia_modeset
+blacklist nvidia_uvm
 blacklist nouveau
 install amdgpu /bin/false
 install radeon /bin/false
