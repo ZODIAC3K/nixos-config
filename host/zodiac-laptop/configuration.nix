@@ -203,15 +203,7 @@ in
   # 🖥️ VM Tools Configuration
   # -----------------------------------------------------------
   # Enable VM tools based on detected VM type
-  # Print detection results when evaluating VM tools
-  virtualisation.vmware.guest.enable = builtins.trace ''
-    ════════════════════════════════════════════════════════════
-    🔍 Hardware Detection Results:
-    ════════════════════════════════════════════════════════════
-    🖥️  Environment: ${vmStatus}
-    🎮 GPU Drivers:  ${gpuStatus}
-    ════════════════════════════════════════════════════════════
-  '' isVMware;  # VMware guest tools
+  virtualisation.vmware.guest.enable = isVMware;  # VMware guest tools
   
   # VirtualBox guest additions
   virtualisation.virtualbox.guest.enable = isVirtualBox;  # VirtualBox guest additions
