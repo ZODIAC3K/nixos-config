@@ -31,25 +31,19 @@ let
   isVirtualBox = false;  # Set to true if VirtualBox, false for VMware
   isVM = isVMware || isVirtualBox;
   
-  # GPU Hardware Detection
-  # Run this command after installing pciutils: lspci | grep -iE "vga|3d|display"
-  # Or check: dmesg | grep -iE "amdgpu|nvidia|vga"
+  # GPU Hardware Detection - AUTOMATIC
+  # Automatically enables GPU drivers based on environment:
+  # - In VM: Both GPUs disabled (blacklisted to prevent crashes)
+  # - On Bare Metal: Both GPUs enabled (kernel will auto-detect available hardware)
   # 
-  # GPU Detection Logic:
-  # - Default: Both GPUs disabled (hasAMDGPU = false, hasNVIDIAGPU = false)
-  # - Enable manually based on your hardware detection:
-  #   → If you have AMD GPU: Set hasAMDGPU = true;
-  #   → If you have NVIDIA GPU: Set hasNVIDIAGPU = true;
-  #   → If you have BOTH (hybrid): Set both = true (both drivers enabled)
-  # 
-  # Default: All GPU drivers disabled (enable manually after detection)
-  hasAMDGPU = false;      # Enable AMD GPU drivers if detected (set to true if you have AMD GPU)
-  hasNVIDIAGPU = false;   # Enable NVIDIA GPU drivers if detected (set to true if you have NVIDIA GPU)
+  # The kernel will automatically load the appropriate drivers for detected hardware.
+  # If you have AMD GPU → AMD driver loads, NVIDIA driver stays inactive
+  # If you have NVIDIA GPU → NVIDIA driver loads, AMD driver stays inactive  
+  # If you have BOTH → Both drivers load (hybrid setup)
   
-  # Enable GPU drivers based on your hardware (uncomment and set):
-  # hasAMDGPU = true;      # Enable if you have AMD GPU
-  # hasNVIDIAGPU = true;   # Enable if you have NVIDIA GPU
-  # Both can be enabled for hybrid AMD+NVIDIA laptops
+  # Automatic detection: Enable on bare metal, disable in VM
+  hasAMDGPU = !isVM;      # Automatically enable AMD GPU drivers on bare metal
+  hasNVIDIAGPU = !isVM;   # Automatically enable NVIDIA GPU drivers on bare metal
   
   # Detection summary for display during rebuild
   vmStatus = if isVMware then "VMware VM"
@@ -78,8 +72,8 @@ let
        • NVIDIA GPU Driver: ${nvidiaStatus}
     📦 GPU Drivers Enabled: ${gpuStatus}
     ════════════════════════════════════════════════════════════
-    💡 Note: GPU drivers are disabled by default.
-       Enable manually: Set hasAMDGPU/hasNVIDIAGPU = true based on detection
+    💡 Note: On bare metal, GPU drivers are enabled automatically.
+       Kernel will auto-detect and load appropriate drivers for available hardware.
     ════════════════════════════════════════════════════════════
   '' null;
 in
@@ -282,19 +276,6 @@ in
     ])
   ];
   
-  boot.initrd.blacklistedKernelModules = lib.mkMerge [
-    (lib.mkIf (!hasAMDGPU) [ 
-      "amdgpu"      # Prevent loading in initrd
-      "radeon"      # Prevent legacy driver loading in initrd
-    ])
-    (lib.mkIf (!hasNVIDIAGPU) [
-      "nvidia"      # Prevent NVIDIA driver loading in initrd
-      "nvidia_drm"  # Prevent NVIDIA DRM loading in initrd
-      "nvidia_modeset"  # Prevent NVIDIA modeset loading in initrd
-      "nvidia_uvm"  # Prevent NVIDIA UVM loading in initrd
-      "nouveau"     # Prevent Nouveau loading in initrd
-    ])
-  ];
   
   # Modprobe blacklist - CONDITIONAL: Only active when GPUs are disabled
   # The "install <module> /bin/false" prevents the kernel from loading it even if hardware is detected
