@@ -70,8 +70,8 @@ let
        • NVIDIA GPU Driver: ${nvidiaStatus}
     📦 GPU Drivers Enabled: ${gpuStatus}
     ════════════════════════════════════════════════════════════
-    💡 Note: All GPU drivers are DISABLED. Only Mesa software rendering is enabled.
-       Graphics will work using Mesa's llvmpipe software renderer (no hardware acceleration).
+    💡 Note: All GPU drivers and Mesa are DISABLED.
+       Enable GPU drivers and Mesa when needed on bare metal.
     ════════════════════════════════════════════════════════════
   '' null;
 in
@@ -87,13 +87,16 @@ in
   # -----------------------------------------------------------
   # ⚙️ Bootloader
   # -----------------------------------------------------------
-  # GRUB bootloader is disabled
+  # systemd-boot is the default bootloader (UEFI systems)
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;  # Allow systemd-boot to manage EFI variables
+  
+  # Alternative: GRUB bootloader (uncomment if you prefer GRUB instead)
   # boot.loader.grub = {
   #   enable = true;
   #   device = "/dev/sda";       # Replace if your main disk differs (e.g. /dev/nvme0n1)
   #   useOSProber = true;        # Detects Windows or other OS installations
   # };
-  boot.loader.grub.enable = false;
   
   # Kernel parameters to prevent GPU auto-loading - ENABLED
   # CRITICAL: Prevents kernel from auto-detecting and loading GPU modules during boot
@@ -232,8 +235,8 @@ in
        • NVIDIA GPU Driver: ${nvidiaStatus}
     📦 GPU Drivers Enabled: ${gpuStatus}
     ════════════════════════════════════════════════════════════
-    💡 Note: On bare metal, GPU drivers are enabled automatically.
-       Kernel will auto-detect and load appropriate drivers for available hardware.
+    💡 Note: All GPU drivers and Mesa are DISABLED.
+       Enable GPU drivers and Mesa when needed on bare metal.
     ════════════════════════════════════════════════════════════
   '' isVMware;  # VMware guest tools
   
