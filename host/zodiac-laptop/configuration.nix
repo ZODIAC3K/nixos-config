@@ -31,19 +31,13 @@ let
   isVirtualBox = false;  # Set to true if VirtualBox, false for VMware
   isVM = isVMware || isVirtualBox;
   
-  # GPU Hardware Detection - AUTOMATIC
-  # Automatically enables GPU drivers based on environment:
-  # - In VM: Both GPUs disabled (blacklisted to prevent crashes)
-  # - On Bare Metal: Both GPUs enabled (kernel will auto-detect available hardware)
-  # 
-  # The kernel will automatically load the appropriate drivers for detected hardware.
-  # If you have AMD GPU → AMD driver loads, NVIDIA driver stays inactive
-  # If you have NVIDIA GPU → NVIDIA driver loads, AMD driver stays inactive  
-  # If you have BOTH → Both drivers load (hybrid setup)
+  # GPU Hardware Detection - DISABLED
+  # All GPU drivers are disabled - only Mesa (software rendering) is enabled
+  # Mesa will work without GPU drivers using software rendering (llvmpipe)
   
-  # Automatic detection: Enable on bare metal, disable in VM
-  hasAMDGPU = !isVM;      # Automatically enable AMD GPU drivers on bare metal
-  hasNVIDIAGPU = !isVM;   # Automatically enable NVIDIA GPU drivers on bare metal
+  # Disable all GPU drivers - no auto-detection, no loading
+  hasAMDGPU = false;      # AMD GPU drivers disabled
+  hasNVIDIAGPU = false;   # NVIDIA GPU drivers disabled
   
   # Detection summary for display during rebuild
   vmStatus = if isVMware then "VMware VM"
@@ -72,8 +66,8 @@ let
        • NVIDIA GPU Driver: ${nvidiaStatus}
     📦 GPU Drivers Enabled: ${gpuStatus}
     ════════════════════════════════════════════════════════════
-    💡 Note: On bare metal, GPU drivers are enabled automatically.
-       Kernel will auto-detect and load appropriate drivers for available hardware.
+    💡 Note: All GPU drivers are DISABLED. Only Mesa software rendering is enabled.
+       Graphics will work using Mesa's llvmpipe software renderer (no hardware acceleration).
     ════════════════════════════════════════════════════════════
   '' null;
 in
@@ -97,19 +91,18 @@ in
   # };
   boot.loader.grub.enable = false;
   
-  # Kernel parameters to prevent GPU auto-loading in initrd when GPUs are disabled
-  # This prevents the kernel from auto-detecting and loading GPU modules during Stage 1
-  # The module_blacklist parameter tells the kernel to never load these modules
-  boot.kernelParams = 
-    if (!hasAMDGPU && !hasNVIDIAGPU) then [
-      "module_blacklist=amdgpu"
-      "module_blacklist=radeon"
-      "module_blacklist=nvidia"
-      "module_blacklist=nvidia_drm"
-      "module_blacklist=nvidia_modeset"
-      "module_blacklist=nvidia_uvm"
-      "module_blacklist=nouveau"
-    ] else [ ];
+  # Kernel parameters to prevent GPU auto-loading - COMMENTED OUT (not needed now)
+  # Uncomment when you want to prevent GPU modules from loading
+  # boot.kernelParams = 
+  #   if (!hasAMDGPU && !hasNVIDIAGPU) then [
+  #     "module_blacklist=amdgpu"
+  #     "module_blacklist=radeon"
+  #     "module_blacklist=nvidia"
+  #     "module_blacklist=nvidia_drm"
+  #     "module_blacklist=nvidia_modeset"
+  #     "module_blacklist=nvidia_uvm"
+  #     "module_blacklist=nouveau"
+  #   ] else [ ];
 
   # -----------------------------------------------------------
   # 🌐 Networking
@@ -281,128 +274,54 @@ in
   # 2. Initrd blacklist (prevents loading during early boot/initrd)
   # 3. Modprobe blacklist with install hook (prevents loading via ANY means including hardware detection)
   
-  # AMD GPU blacklist - only active when hasAMDGPU = false
-  boot.blacklistedKernelModules = lib.mkMerge [
-    (lib.mkIf (!hasAMDGPU) [ 
-      "amdgpu"      # Modern AMD GPU driver
-      "radeon"      # Legacy AMD/ATI GPU driver (prevent legacy detection)
-    ])
-    (lib.mkIf (!hasNVIDIAGPU) [
-      "nvidia"      # NVIDIA proprietary driver
-      "nvidia_drm"  # NVIDIA DRM/KMS driver
-      "nvidia_modeset"  # NVIDIA mode setting
-      "nvidia_uvm"  # NVIDIA unified memory (CUDA)
-      "nouveau"     # Open-source NVIDIA driver (blacklist when using proprietary)
-    ])
-  ];
+  # GPU blacklisting - COMMENTED OUT (not needed now, will add when enabling GPU drivers)
+  # Uncomment when you want to blacklist GPU modules
+  # boot.blacklistedKernelModules = lib.mkMerge [
+  #   (lib.mkIf (!hasAMDGPU) [ 
+  #     "amdgpu"      # Modern AMD GPU driver
+  #     "radeon"      # Legacy AMD/ATI GPU driver (prevent legacy detection)
+  #   ])
+  #   (lib.mkIf (!hasNVIDIAGPU) [
+  #     "nvidia"      # NVIDIA proprietary driver
+  #     "nvidia_drm"  # NVIDIA DRM/KMS driver
+  #     "nvidia_modeset"  # NVIDIA mode setting
+  #     "nvidia_uvm"  # NVIDIA unified memory (CUDA)
+  #     "nouveau"     # Open-source NVIDIA driver (blacklist when using proprietary)
+  #   ])
+  # ];
   
-  
-  # Modprobe blacklist - CONDITIONAL: Only active when GPUs are disabled
-  # The "install <module> /bin/false" prevents the kernel from loading it even if hardware is detected
-  # This creates /etc/modprobe.d/blacklist.conf
-  boot.extraModprobeConfig = lib.concatStringsSep "\n" (
-    lib.optional (!hasAMDGPU) ''
-      # Blacklist AMD GPU modules to prevent crashes in VM/bare metal without AMD GPU
-      # The kernel may still detect virtual GPU hardware and try to load these modules
-      # These rules prevent that from happening
-      blacklist amdgpu
-      blacklist radeon
-      install amdgpu /bin/false
-      install radeon /bin/false
-    '' ++
-    lib.optional (!hasNVIDIAGPU) ''
-      # Blacklist NVIDIA GPU modules to prevent loading when NVIDIA GPU is disabled
-      blacklist nvidia
-      blacklist nvidia_drm
-      blacklist nvidia_modeset
-      blacklist nvidia_uvm
-      blacklist nouveau
-      install nvidia /bin/false
-      install nvidia_drm /bin/false
-      install nvidia_modeset /bin/false
-      install nvidia_uvm /bin/false
-      install nouveau /bin/false
-    ''
-  );
+  # Modprobe blacklist - COMMENTED OUT (not needed now)
+  # Uncomment when you want to prevent GPU modules from loading via modprobe
+  # boot.extraModprobeConfig = lib.concatStringsSep "\n" (
+  #   lib.optional (!hasAMDGPU) ''
+  #     blacklist amdgpu
+  #     blacklist radeon
+  #     install amdgpu /bin/false
+  #     install radeon /bin/false
+  #   '' ++
+  #   lib.optional (!hasNVIDIAGPU) ''
+  #     blacklist nvidia
+  #     blacklist nvidia_drm
+  #     blacklist nvidia_modeset
+  #     blacklist nvidia_uvm
+  #     blacklist nouveau
+  #     install nvidia /bin/false
+  #     install nvidia_drm /bin/false
+  #     install nvidia_modeset /bin/false
+  #     install nvidia_uvm /bin/false
+  #     install nouveau /bin/false
+  #   ''
+  # );
   
   # dm_mod (device mapper) - blacklist if not needed
   # Remove "dm_mod" from blacklist if you use LVM or other device mapper features
   # boot.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
   # boot.initrd.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
   
-  # AMD GPU kernel module - CONDITIONAL: Only load if enabled
-  # When hasAMDGPU = false, don't load in initrd
-  # CRITICAL: Use empty list when disabled to prevent initrd from loading it
-  boot.initrd.kernelModules = 
-    if hasAMDGPU then [ "amdgpu" ] else [ ];
-  
-  # CRITICAL FIX: Override the initrd script that loads modules
-  # The initrd script calls "modprobe -a" which tries to load all detected modules
-  # We need to intercept this by creating a wrapper that prevents GPU modules
-  boot.initrd.systemd = {
-    enable = true;  # Use systemd initrd for better control
-  };
-  
-  # Create a custom modprobe wrapper that prevents GPU modules from loading
-  boot.initrd.extraUtilsCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
-    # Create modprobe wrapper that prevents GPU modules
-    mkdir -p $out/bin
-    cat > $out/bin/modprobe <<'MODPROBE_EOF'
-#!/bin/sh
-# Wrapper to prevent GPU modules from loading
-case "$1" in
-  amdgpu|radeon|nvidia|nvidia_drm|nvidia_modeset|nvidia_uvm|nouveau)
-    echo "modprobe: ERROR: Module $1 is blacklisted" >&2
-    exit 1
-    ;;
-esac
-# Call real modprobe for other modules (use busybox modprobe if available)
-if command -v modprobe.real >/dev/null 2>&1; then
-  exec modprobe.real "$@"
-elif [ -f /sbin/modprobe ]; then
-  exec /sbin/modprobe "$@"
-else
-  echo "modprobe: ERROR: Cannot find modprobe binary" >&2
-  exit 1
-fi
-MODPROBE_EOF
-    chmod +x $out/bin/modprobe
-    
-    # Also create blacklist config
-    mkdir -p $out/etc/modprobe.d
-    cat > $out/etc/modprobe.d/blacklist.conf <<'EOF'
-blacklist amdgpu
-blacklist radeon
-blacklist nvidia
-blacklist nvidia_drm
-blacklist nvidia_modeset
-blacklist nvidia_uvm
-blacklist nouveau
-install amdgpu /bin/false
-install radeon /bin/false
-install nvidia /bin/false
-install nouveau /bin/false
-EOF
-  '';
-  
-  # Also ensure blacklist is present in initrd
-  boot.initrd.preDeviceCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
-    # Create modprobe blacklist very early
-    mkdir -p /etc/modprobe.d
-    cat > /etc/modprobe.d/blacklist.conf <<'EOF'
-blacklist amdgpu
-blacklist radeon
-blacklist nvidia
-blacklist nvidia_drm
-blacklist nvidia_modeset
-blacklist nvidia_uvm
-blacklist nouveau
-install amdgpu /bin/false
-install radeon /bin/false
-install nvidia /bin/false
-install nouveau /bin/false
-EOF
-  '';
+  # AMD GPU kernel module - COMMENTED OUT (not needed now)
+  # Uncomment when you want to enable AMD GPU drivers
+  # boot.initrd.kernelModules = 
+  #   if hasAMDGPU then [ "amdgpu" ] else [ ];
   
   # Mesa graphics library - always enabled (needed for basic graphics)
   # AMD GPU userspace (OpenGL/Vulkan) - using Mesa from unstable for bleeding-edge
@@ -413,29 +332,20 @@ EOF
     enable32Bit = true;  # Enable 32-bit DRI support if needed
   };
   
-  # NVIDIA proprietary drivers - ENABLED
-  services.xserver.videoDrivers = lib.mkIf hasNVIDIAGPU [ "nvidia" ];
-  
-  hardware.nvidia = lib.mkIf hasNVIDIAGPU {
-    # Enable NVIDIA drivers
-    modesetting.enable = true;
-    
-    # Enable power management (fixes some issues with hybrid graphics)
-    powerManagement.enable = true;
-    
-    # Enable NVIDIA power management (recommended for laptops)
-    powerManagement.finegrained = false;
-    
-    # Enable OpenGL support
-    open = false;  # Use proprietary drivers (not open-source Nouveau)
-    
-    # Enable CUDA support (installed with NVIDIA drivers)
-    # CUDA is automatically included with nvidiaPackages.production
-    nvidiaSettings = true;  # Installs nvidia-settings for GUI tweaks
-    
-    # Package set for NVIDIA drivers (includes CUDA support)
-    package = config.boot.kernelPackages.nvidiaPackages.production;
-  };
+  # NVIDIA proprietary drivers - DISABLED (all GPU drivers disabled)
+  # All GPU drivers are disabled - only Mesa software rendering is enabled
+  # Uncomment below when you want to enable NVIDIA drivers:
+  # services.xserver.videoDrivers = lib.mkIf hasNVIDIAGPU [ "nvidia" ];
+  # 
+  # hardware.nvidia = lib.mkIf hasNVIDIAGPU {
+  #   # Enable NVIDIA drivers
+  #   modesetting.enable = true;
+  #   powerManagement.enable = true;
+  #   powerManagement.finegrained = false;
+  #   open = false;  # Use proprietary drivers (not open-source Nouveau)
+  #   nvidiaSettings = true;  # Installs nvidia-settings for GUI tweaks
+  #   package = config.boot.kernelPackages.nvidiaPackages.production;
+  # };
   
   # NVIDIA PRIME (offload rendering to NVIDIA GPU)
   # By default DISABLED - system uses AMD for display, NVIDIA for compute only.
