@@ -331,12 +331,49 @@ in
   # boot.initrd.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
   
   # AMD GPU kernel module - CONDITIONAL: Only load if enabled
-  # When hasAMDGPU = false, don't load in initrd (kernel may still auto-detect, so we use kernel params too)
-  boot.initrd.kernelModules = lib.mkMerge [
-    (lib.mkIf hasAMDGPU [ "amdgpu" ])
-    # When GPUs are disabled, ensure empty list (prevents auto-loading)
-    (lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) [ ])
-  ];
+  # When hasAMDGPU = false, don't load in initrd
+  # CRITICAL: Use empty list when disabled to prevent initrd from loading it
+  boot.initrd.kernelModules = 
+    if hasAMDGPU then [ "amdgpu" ] else [ ];
+  
+  # Custom initrd script to prevent GPU modules from loading when disabled
+  # This runs during initrd Stage 1 very early, before modules are probed
+  # The initrd script tries to load modules based on hardware detection,
+  # so we need to blacklist them before that happens
+  boot.initrd.preDeviceCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
+    # Create modprobe blacklist very early in initrd
+    mkdir -p /etc/modprobe.d
+    cat > /etc/modprobe.d/blacklist.conf <<EOF
+blacklist amdgpu
+blacklist radeon
+blacklist nvidia
+blacklist nvidia_drm
+blacklist nvidia_modeset
+blacklist nvidia_uvm
+blacklist nouveau
+install amdgpu /bin/false
+install radeon /bin/false
+install nvidia /bin/false
+install nouveau /bin/false
+EOF
+  '';
+  
+  # Also prevent loading via early initrd hooks
+  # This runs before udev starts probing devices
+  boot.initrd.extraUtilsCommands = lib.mkIf (!hasAMDGPU && !hasNVIDIAGPU) ''
+    # Ensure blacklist is present before modules are loaded
+    mkdir -p $out/etc/modprobe.d
+    cat > $out/etc/modprobe.d/blacklist.conf <<EOF
+blacklist amdgpu
+blacklist radeon
+blacklist nvidia
+blacklist nouveau
+install amdgpu /bin/false
+install radeon /bin/false
+install nvidia /bin/false
+install nouveau /bin/false
+EOF
+  '';
   
   # Mesa graphics library - always enabled (needed for basic graphics)
   # AMD GPU userspace (OpenGL/Vulkan) - using Mesa from unstable for bleeding-edge
