@@ -87,17 +87,15 @@ in
   # -----------------------------------------------------------
   # ⚙️ Bootloader
   # -----------------------------------------------------------
-  # systemd-boot is the default bootloader (UEFI systems)
-  # Only enable on bare metal - VMs may not have EFI partition mounted
-  boot.loader.systemd-boot.enable = !isVM;  # Disable in VM, enable on bare metal
+  # systemd-boot: Default for bare metal (UEFI systems)
+  # GRUB: Used in VM mode (more flexible, doesn't require separate EFI partition)
+  boot.loader.systemd-boot.enable = !isVM;  # Enable on bare metal, disable in VM
   boot.loader.efi.canTouchEfiVariables = !isVM;  # Allow systemd-boot to manage EFI variables (only on bare metal)
   
-  # Alternative: GRUB bootloader (uncomment if you prefer GRUB instead)
-  # boot.loader.grub = {
-  #   enable = true;
-  #   device = "/dev/sda";       # Replace if your main disk differs (e.g. /dev/nvme0n1)
-  #   useOSProber = true;        # Detects Windows or other OS installations
-  # };
+  # GRUB bootloader: Used in VM mode
+  boot.loader.grub.enable = isVM;  # Enable GRUB in VM, disable on bare metal
+  boot.loader.grub.devices = lib.mkIf isVM [ "nodev" ];  # Use nodev for VM (no physical device needed)
+  boot.loader.grub.useOSProber = lib.mkIf isVM false;  # Don't probe for other OS in VM
   
   # Kernel parameters to prevent GPU auto-loading - ENABLED
   # CRITICAL: Prevents kernel from auto-detecting and loading GPU modules during boot
