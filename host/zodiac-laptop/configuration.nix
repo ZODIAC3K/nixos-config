@@ -88,8 +88,9 @@ in
   # ⚙️ Bootloader
   # -----------------------------------------------------------
   # systemd-boot is the default bootloader (UEFI systems)
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;  # Allow systemd-boot to manage EFI variables
+  # Only enable on bare metal - VMs may not have EFI partition mounted
+  boot.loader.systemd-boot.enable = !isVM;  # Disable in VM, enable on bare metal
+  boot.loader.efi.canTouchEfiVariables = !isVM;  # Allow systemd-boot to manage EFI variables (only on bare metal)
   
   # Alternative: GRUB bootloader (uncomment if you prefer GRUB instead)
   # boot.loader.grub = {
