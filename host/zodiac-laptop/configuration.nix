@@ -203,7 +203,21 @@ in
   # 🖥️ VM Tools Configuration
   # -----------------------------------------------------------
   # Enable VM tools based on detected VM type
-  virtualisation.vmware.guest.enable = isVMware;  # VMware guest tools
+  # Print detection results when evaluating VM tools (forces evaluation of trace)
+  virtualisation.vmware.guest.enable = builtins.trace ''
+    ════════════════════════════════════════════════════════════
+    🔍 Hardware Detection Results:
+    ════════════════════════════════════════════════════════════
+    🖥️  Environment:        ${vmStatus}
+    🎮 GPU Detection Logic:
+       • AMD GPU Driver:    ${amdStatus}
+       • NVIDIA GPU Driver: ${nvidiaStatus}
+    📦 GPU Drivers Enabled: ${gpuStatus}
+    ════════════════════════════════════════════════════════════
+    💡 Note: On bare metal, GPU drivers are enabled automatically.
+       Kernel will auto-detect and load appropriate drivers for available hardware.
+    ════════════════════════════════════════════════════════════
+  '' isVMware;  # VMware guest tools
   
   # VirtualBox guest additions
   virtualisation.virtualbox.guest.enable = isVirtualBox;  # VirtualBox guest additions
