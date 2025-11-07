@@ -16,65 +16,6 @@
 
 { config, pkgs, lib, unstable, ... }:
 
-let
-  # -----------------------------------------------------------
-  # 🖥️ VM & GPU Hardware Detection
-  # -----------------------------------------------------------
-  # VM Detection: Check hardware-configuration.nix for VM-specific modules
-  # VM kernels typically include: ata_piix, mptspi (VMware/VirtualBox)
-  # Your hardware-configuration.nix shows: "ata_piix" "mptspi" → VM detected
-  
-  # VM Detection flags - set manually or auto-detect via hardware-config
-  # Check your hardware-configuration.nix: if you see "ata_piix" or "mptspi", it's a VM
-  # Since hardware-config shows VM modules, you're in a VM - set to true
-  isVMware = false;      # Set to false if bare metal
-  isVirtualBox = false;  # Set to true if VirtualBox, false for VMware
-  isVM = isVMware || isVirtualBox;
-  
-  # GPU Hardware Detection - DISABLED
-  # All GPU drivers are disabled - only Mesa (software rendering) is enabled
-  # Mesa will work without GPU drivers using software rendering (llvmpipe)
-  #
-  # NOTE: Even with drivers disabled, the kernel may still auto-detect GPU hardware
-  # and try to load modules (amdgpu, nvidia, etc.) based on hardware detection.
-  # To prevent kernel auto-loading, uncomment the blacklist sections below.
-  
-  # Disable all GPU drivers - no driver configuration, but kernel may still auto-detect hardware
-  hasAMDGPU = true;      # AMD GPU drivers disabled
-  hasNVIDIAGPU = true;   # NVIDIA GPU drivers disabled
-  
-  # Detection summary for display during rebuild
-  vmStatus = if isVMware then "VMware VM"
-            else if isVirtualBox then "VirtualBox VM"
-            else "Bare Metal";
-  
-  gpuStatus = lib.concatStringsSep ", " (
-    lib.optional hasAMDGPU "AMD GPU" ++
-    lib.optional hasNVIDIAGPU "NVIDIA GPU" ++
-    lib.optional (!hasAMDGPU && !hasNVIDIAGPU) "No GPU drivers"
-  );
-  
-  # GPU detection details
-  amdStatus = if hasAMDGPU then "✅ Enabled" else "❌ Disabled (blacklisted)";
-  nvidiaStatus = if hasNVIDIAGPU then "✅ Enabled" else "❌ Disabled (blacklisted)";
-  
-  # Print detection results during evaluation
-  # Force evaluation by using it in an assertion
-  _ = builtins.trace ''
-    ════════════════════════════════════════════════════════════
-    🔍 Hardware Detection Results:
-    ════════════════════════════════════════════════════════════
-    🖥️  Environment:        ${vmStatus}
-    🎮 GPU Detection Logic:
-       • AMD GPU Driver:    ${amdStatus}
-       • NVIDIA GPU Driver: ${nvidiaStatus}
-    📦 GPU Drivers Enabled: ${gpuStatus}
-    ════════════════════════════════════════════════════════════
-    💡 Note: All GPU drivers and Mesa are DISABLED.
-       Enable GPU drivers and Mesa when needed on bare metal.
-    ════════════════════════════════════════════════════════════
-  '' null;
-in
 {
   # -----------------------------------------------------------
   # 🧩 Import hardware configuration
@@ -88,32 +29,15 @@ in
   # ⚙️ Bootloader
   # -----------------------------------------------------------
   # GRUB bootloader configuration
-  # Use "nodev" for VM (no physical device), or "/dev/sda" for bare metal
-  # boot.loader.grub.device = if isVM then "nodev" else "/dev/nvme1n1p2";
   boot.loader.grub = {
-  enable = true;
-  # version = 2;
-  efiSupport = true;
-  device = "nodev";
-  useOSProber = true;
+    enable = true;
+    efiSupport = true;
+    device = "nodev";
+    useOSProber = true;
   };
   boot.loader.efi.canTouchEfiVariables = true;
   
-  # Kernel parameters to prevent GPU auto-loading - ENABLED
-  # CRITICAL: Prevents kernel from auto-detecting and loading GPU modules during boot
-  # This is ESSENTIAL in VMs to prevent crashes from loading incompatible GPU drivers
-  # The kernel will auto-detect host GPU hardware and try to load drivers, causing crashes
-  # boot.kernelParams = 
-  #   if (!hasAMDGPU && !hasNVIDIAGPU) then [
-  #     "module_blacklist=amdgpu"
-  #     "module_blacklist=radeon"
-  #     "module_blacklist=nvidia"
-  #     "module_blacklist=nvidia_drm"
-  #     "module_blacklist=nvidia_modeset"
-  #     "module_blacklist=nvidia_uvm"
-  #     "module_blacklist=nouveau"
-  #   ] else [ ];
-
+  # Kernel parameters
   boot.kernelParams = [ "amdgpu.backlight=0" "quiet" "splash" ];
 
 
@@ -257,51 +181,16 @@ in
   };
 
   # -----------------------------------------------------------
-  # 🖥️ VM Tools Configuration
+  # 🎮 GPU Hardware Configuration (AMD + NVIDIA + PRIME)
   # -----------------------------------------------------------
-  # Enable VM tools based on detected VM type
-  # Print detection results when evaluating VM tools (forces evaluation of trace)
-  # virtualisation.vmware.guest.enable = builtins.trace ''
-  #   ════════════════════════════════════════════════════════════
-  #   🔍 Hardware Detection Results:
-  #   ════════════════════════════════════════════════════════════
-  #   🖥️  Environment:        ${vmStatus}
-  #   🎮 GPU Detection Logic:
-  #      • AMD GPU Driver:    ${amdStatus}
-  #      • NVIDIA GPU Driver: ${nvidiaStatus}
-  #   📦 GPU Drivers Enabled: ${gpuStatus}
-  #   ════════════════════════════════════════════════════════════
-  #   💡 Note: All GPU drivers and Mesa are DISABLED.
-  #      Enable GPU drivers and Mesa when needed on bare metal.
-  #   ════════════════════════════════════════════════════════════
-  # '' isVMware;  # VMware guest tools
+  # AMD GPU: Integrated GPU (Cezanne [Radeon Vega])
+  # NVIDIA GPU: Dedicated GPU (GeForce RTX 3060 Mobile)
+  # PRIME: Offload rendering to NVIDIA GPU while using AMD for display
   
-  # # VirtualBox guest additions
-  # virtualisation.virtualbox.guest.enable = isVirtualBox;  # VirtualBox guest additions
-
-
-  # -----------------------------------------------------------
-  # 🎮 GPU Hardware Configuration (AMD + Mesa)
-  # -----------------------------------------------------------
-  # Use stable kernel AMDGPU drivers for compatibility, but pull Mesa from unstable.
-  # hardware.opengl = {
-  #   enable = true;
-  #   package = unstable.mesa;  # Pull Mesa from nixos-unstable (25.6.2)
-  # };
-
-  # services.xserver.videoDrivers = [ "amdgpu" ];
-  # boot.initrd.kernelModules = [ "amdgpu" ];
-
-  # # Optionally ensure Vulkan stack is up to date
-  # hardware.opengl.extraPackages = with pkgs; [
-  #   unstable.mesa.drivers
-  #   unstable.vulkan-loader
-  #   unstable.vulkan-validation-layers
-  # ];
-
+  # OpenGL/Vulkan support
   hardware.opengl = {
     enable = true;
-    package = unstable.mesa;  # Force Mesa 25.6.2
+    package = unstable.mesa;
     extraPackages = with unstable; [
       mesa
       vulkan-loader
@@ -309,8 +198,29 @@ in
     ];
   };
 
-  services.xserver.videoDrivers = [ "amdgpu" ];
+  # AMD GPU driver
+  services.xserver.videoDrivers = [ "amdgpu" "nvidia" ];
   boot.initrd.kernelModules = [ "amdgpu" ];
+
+  # NVIDIA proprietary drivers
+  hardware.nvidia = {
+    # Enable NVIDIA drivers
+    modesetting.enable = true;
+    powerManagement.enable = true;
+    powerManagement.finegrained = false;
+    open = false;  # Use proprietary drivers (not open-source Nouveau)
+    nvidiaSettings = true;  # Installs nvidia-settings for GUI tweaks
+    package = config.boot.kernelPackages.nvidiaPackages.production;
+    
+    # NVIDIA PRIME (offload rendering to NVIDIA GPU)
+    # AMD GPU handles display, NVIDIA GPU handles rendering
+    prime = {
+      # AMD GPU (integrated GPU) - PCI:6:0:0
+      amdgpuBusId = "PCI:6:0:0";
+      # NVIDIA GPU (dedicated GPU) - PCI:1:0:0
+      nvidiaBusId = "PCI:1:0:0";
+    };
+  };
 
 
   # -----------------------------------------------------------
@@ -331,124 +241,6 @@ in
     # Use Neovim/Nano only if you don't have a GUI
     ++ (lib.optional (!(config.services.xserver.enable or false)) [ neovim nano ]);
 
-  # -----------------------------------------------------------
-  # 🎮 GPU Hardware Detection & Configuration
-  # -----------------------------------------------------------
-  # GPU drivers are DISABLED by default - enable manually based on detection output
-  # Mesa (graphics library) is always enabled for basic graphics support.
-  #
-  # To detect your GPUs, run: lspci | grep -iE "vga|3d|display"
-  # Look for entries like:
-  #   - AMD/ATI devices → enable AMD drivers
-  #   - NVIDIA devices → enable NVIDIA drivers
-  #
-  # Check the detection output when rebuilding to see what was detected!
-  #
-  # ⚠️  ON BARE METAL: You MUST enable GPU drivers for hardware acceleration!
-  #   1. Set isVMware = false; (line 30)
-  #   2. Detect GPUs: lspci | grep -iE "vga|3d|display"
-  #   3. Uncomment the appropriate GPU driver section below
-  #   4. Remove amdgpu/radeon from blacklist below (if you have AMD GPU)
-  #
-  
-  # Explicitly blacklist GPU modules to prevent auto-loading and crashes
-  # ✅ CONDITIONAL BLACKLIST: Only blacklists GPUs when disabled (e.g., in VM)
-  # When hasAMDGPU/hasNVIDIAGPU = true (bare metal), blacklist is disabled so drivers can load
-  # Multiple layers of blacklisting to ensure it NEVER loads, even if hardware is detected:
-  # 1. Kernel module blacklist (prevents loading via modprobe)
-  # 2. Initrd blacklist (prevents loading during early boot/initrd)
-  # 3. Modprobe blacklist with install hook (prevents loading via ANY means including hardware detection)
-  
-  # GPU blacklisting - ENABLED to prevent kernel auto-loading
-  # CRITICAL: Prevents GPU modules from loading even if hardware is detected
-  # The kernel auto-detects host GPU hardware in VMs and tries to load drivers, causing crashes
-  # This blacklist prevents the kernel from loading GPU modules at all
-  # boot.blacklistedKernelModules = lib.mkMerge [
-  #   (lib.mkIf (!hasAMDGPU) [ 
-  #     "amdgpu"      # Modern AMD GPU driver
-  #     "radeon"      # Legacy AMD/ATI GPU driver (prevent legacy detection)
-  #   ])
-  #   (lib.mkIf (!hasNVIDIAGPU) [
-  #     "nvidia"      # NVIDIA proprietary driver
-  #     "nvidia_drm"  # NVIDIA DRM/KMS driver
-  #     "nvidia_modeset"  # NVIDIA mode setting
-  #     "nvidia_uvm"  # NVIDIA unified memory (CUDA)
-  #     "nouveau"     # Open-source NVIDIA driver (blacklist when using proprietary)
-  #   ])
-  # ];
-  
-  # Modprobe blacklist - ENABLED to prevent kernel auto-loading
-  # CRITICAL: The "install <module> /bin/false" prevents the kernel from loading it even if hardware is detected
-  # This creates /etc/modprobe.d/blacklist.conf
-  # This is the final layer of protection - even if blacklist is bypassed, install hook fails
-  # boot.extraModprobeConfig = lib.concatStringsSep "\n" (
-  #   lib.optional (!hasAMDGPU) ''
-  #     # Blacklist AMD GPU modules to prevent crashes in VM/bare metal without AMD GPU
-  #     # The kernel detects host GPU hardware and tries to load these modules
-  #     # These rules prevent that from happening
-  #     blacklist amdgpu
-  #     blacklist radeon
-  #     install amdgpu /bin/false
-  #     install radeon /bin/false
-  #   '' ++
-  #   lib.optional (!hasNVIDIAGPU) ''
-  #     # Blacklist NVIDIA GPU modules to prevent loading when NVIDIA GPU is disabled
-  #     blacklist nvidia
-  #     blacklist nvidia_drm
-  #     blacklist nvidia_modeset
-  #     blacklist nvidia_uvm
-  #     blacklist nouveau
-  #     install nvidia /bin/false
-  #     install nvidia_drm /bin/false
-  #     install nvidia_modeset /bin/false
-  #     install nvidia_uvm /bin/false
-  #     install nouveau /bin/false
-  #   ''
-  # );
-  
-  # dm_mod (device mapper) - blacklist if not needed
-  # Remove "dm_mod" from blacklist if you use LVM or other device mapper features
-  # boot.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
-  # boot.initrd.blacklistedKernelModules = [ "amdgpu" "dm_mod" ];
-  
-  # AMD GPU kernel module - COMMENTED OUT (not needed now)
-  # Uncomment when you want to enable AMD GPU drivers
-  # boot.initrd.kernelModules = 
-  #   if hasAMDGPU then [ "amdgpu" ] else [ ];
-  
-  # Mesa graphics library - DISABLED
-  # Uncomment when you need graphics support
-  # hardware.graphics = {
-  #   enable = true;
-  #   package = unstable.mesa;  # Mesa 25.2.6+ from nixos-unstable (optional: use pkgs.mesa for stable)
-  #   enable32Bit = true;  # Enable 32-bit DRI support if needed
-  # };
-  
-  # NVIDIA proprietary drivers - DISABLED (all GPU drivers disabled)
-  # All GPU drivers are disabled - only Mesa software rendering is enabled
-  # Uncomment below when you want to enable NVIDIA drivers:
-  # services.xserver.videoDrivers = lib.mkIf hasNVIDIAGPU [ "nvidia" ];
-  # 
-  # hardware.nvidia = lib.mkIf hasNVIDIAGPU {
-  #   # Enable NVIDIA drivers
-  #   modesetting.enable = true;
-  #   powerManagement.enable = true;
-  #   powerManagement.finegrained = false;
-  #   open = false;  # Use proprietary drivers (not open-source Nouveau)
-  #   nvidiaSettings = true;  # Installs nvidia-settings for GUI tweaks
-  #   package = config.boot.kernelPackages.nvidiaPackages.production;
-  # };
-  
-  # NVIDIA PRIME (offload rendering to NVIDIA GPU)
-  # By default DISABLED - system uses AMD for display, NVIDIA for compute only.
-  # Uncomment below to enable GPU offloading (more complex, requires runtime setup):
-  # hardware.nvidia.prime = {
-  #   # AMD GPU (usually the integrated GPU)
-  #   amdgpuBusId = "PCI:1:0:0";  # Find with: lspci | grep -i vga
-  #   # NVIDIA GPU (usually the dedicated GPU)
-  #   nvidiaBusId = "PCI:2:0:0";  # Find with: lspci | grep -i nvidia
-  # };
-  
   # -----------------------------------------------------------
   # 🔓 Allow Unfree Packages
   # -----------------------------------------------------------
