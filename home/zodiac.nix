@@ -116,5 +116,28 @@
       shift
       sudo code --no-sandbox --user-data-dir=/tmp/vscode "$FILE" "$@"
     '')
+
+    # Custom helper script to safely open Cursor as root
+    (pkgs.writeShellScriptBin "root-cursor" ''
+      #!/usr/bin/env bash
+
+      if [ $# -lt 1 ]; then
+        echo "Usage: root-cursor <file>"
+        exit 1
+      fi
+
+      FILE="$1"
+      shift
+
+      # Preserve your DISPLAY and BROWSER so Electron can open the GUI
+      sudo \
+        -E \
+        DISPLAY=$DISPLAY \
+        XAUTHORITY=$XAUTHORITY \
+        BROWSER=$BROWSER \
+        cursor --no-sandbox --user-data-dir=/tmp/cursor-root "$FILE" "$@"
+    '')
+
+
   ];
 }
